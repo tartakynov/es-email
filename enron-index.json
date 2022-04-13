@@ -1,0 +1,37 @@
+{
+  "settings": {
+    "number_of_shards": 5,
+    "number_of_replicas": 1
+  },
+  "mappings": {
+    "properties": {
+      "message-id": {
+        "type": "keyword"
+      },
+      "date": {
+        "type": "date",
+        "format": "epoch_second"
+      },
+      "to": {
+        "type": "keyword"
+      },
+      "from": {
+        "type": "keyword"
+      },
+      "cc": {
+        "type": "keyword"
+      },
+      "bcc": {
+        "type": "keyword"
+      },
+      "subject": {
+        "type": "text",
+        "analyzer": "english"
+      },
+      "body": {
+        "type": "text",
+        "analyzer": "english"
+      }
+    }
+  }
+}
