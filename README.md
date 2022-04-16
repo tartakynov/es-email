@@ -5,7 +5,7 @@ This script indexes the Enron mail dataset to Elastic.
 - Dependencies from the requirements.txt
 
 ## Steps
-0. Download the dataset file `enron_mail_20110402.tgz` into `data/` folder
+0. Download the dataset file [enron_mail_20110402.tgz](http://www.cs.cmu.edu/~enron/enron_mail_20110402.tgz) into `data/` folder
 1. Install requirements
 ```shell
 pip install -r requirements.txt
