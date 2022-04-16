@@ -15,62 +15,51 @@ COMMA_SEPARATED_HEADERS = {"from", "to", "cc", "bcc", "x-from", "x-to", "x-cc", 
 
 OUTPUT_SIZE_THRESHOLD = 67108864  # 64 MiB
 
-TAR_FILE = "data/enron_mail_20110402.tgz"
+TAR_FILE = "data/enron_mail_20110402.tgz"  # dataset file location
 
-CURSOR_FILE = "data/cursor.json"
-
-DEBUG_FILE = "data/debug.json"
+PROGRESS_FILE = "data/progress.json"  # cursor file location for saving the progress
 
 
 def parse_file(parser, file_path, content):
     json_doc = {}
-    try:
-        msg = parser.parsestr(content)
-        for header, value in msg.items():
-            header = header.lower()
-            if header not in ALLOWED_HEADERS or not value:
-                continue
-            if header in COMMA_SEPARATED_HEADERS:
-                value = [v.strip() for v in value.split(",")]
-            elif header == "date" and "date" not in json_doc:
-                value = int(parsedate_to_datetime(value).timestamp())
-            json_doc[header] = value
+    msg = parser.parsestr(content)
+    for header, value in msg.items():
+        header = header.lower()
+        if header not in ALLOWED_HEADERS or not value:
+            continue
+        if header in COMMA_SEPARATED_HEADERS:
+            value = [v.strip() for v in value.split(",")]
+        elif header == "date" and "date" not in json_doc:
+            value = int(parsedate_to_datetime(value).timestamp())
+        json_doc[header] = value
 
-        json_doc["body"] = msg.get_payload()
-        json_doc["original_file_path"] = file_path
-        return json_doc
-    except:
-        save_debug(content)
-        raise
+    json_doc["body"] = msg.get_payload()
+    json_doc["original_file_path"] = file_path
+    return json_doc
 
 
-def save_debug(content):
-    with open("data/debug.json", "w") as fp:
-        fp.write(content)
-
-
-def send(fp):
+def bulk_upload(fp):
     print(f"uploading")
     r = requests.post('http://localhost:9200/_bulk', data=fp, headers={"Content-Type": "application/json"})
     r.raise_for_status()
     print(f"uploaded, status {r.status_code}")
 
 
-def save_cursor(file_path, index):
-    cursor = {
+def save_progress(file_path, index):
+    progress = {
         "path": file_path,
         "index": index
     }
 
     print(f"current position: {file_path}, index {index}")
-    with open(CURSOR_FILE, "w") as fp:
-        json.dump(cursor, fp, indent=2)
+    with open(PROGRESS_FILE, "w") as fp:
+        json.dump(progress, fp, indent=2)
 
 
-def load_cursor():
-    with open(CURSOR_FILE, "r") as fp:
-        cursor = json.load(fp)
-        return cursor["path"], cursor["index"]
+def load_progress():
+    with open(PROGRESS_FILE, "r") as fp:
+        progress = json.load(fp)
+        return progress["path"], progress["index"]
 
 
 def load_data():
@@ -89,7 +78,7 @@ def load_data():
 
 def main():
     eml_count = 0
-    last_path, last_index = load_cursor()
+    last_path, last_index = load_progress()
 
     out = StringIO()
     try:
@@ -107,11 +96,11 @@ def main():
 
             if out.tell() >= OUTPUT_SIZE_THRESHOLD:
                 out.seek(0)
-                send(out)
+                bulk_upload(out)
 
                 out.close()
                 out = StringIO()
-                save_cursor(json_doc["original_file_path"], eml_count)
+                save_progress(json_doc["original_file_path"], eml_count)
     finally:
         out.close()
 
