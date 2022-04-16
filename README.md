@@ -1,23 +1,26 @@
+This script indexes the Enron mail dataset to Elastic.
+
 ## Prerequisites
 - Python 3
 - Dependencies from the requirements.txt
 
 ## Steps
-0. Data file `enron_mail_20110402.tgz`
-1. Create an index in Elastic
+0. Download the dataset file `enron_mail_20110402.tgz` into `data/` folder
+1. Install requirements
+```shell
+pip install -r requirements.txt
+```
+2. Create the index in Elastic
 ```shell
 curl -sX PUT "http://localhost:9200/enron" \
   -H "Content-Type: application/json" \
   --data-binary @enron-index.json | jq
 ```
-2. Prepare Elastic [Bulk API](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html) JSON files
-3. Upload the files via the bulk upload endpoint
+3. Run the script
 ```shell
-curl -sX POST "http://localhost:9200/_bulk" \
-  -H "Content-Type: application/json" \
-  --data-binary @data/output.json
+./main.py
 ```
-4. Delete index if needed
+4. You can delete the index if you want to re-upload the data
 ```shell
 curl -sX DELETE "http://localhost:9200/enron" | jq
 ```
@@ -26,4 +29,3 @@ curl -sX DELETE "http://localhost:9200/enron" | jq
 - http://praveendiary.blogspot.com/2014/10/elastic-search-experimentation-with.html
 - https://gssachdeva.wordpress.com/2016/03/20/mining-mailboxes-with-elasticsearch-and-kibana/
 - https://kb.objectrocket.com/elasticsearch/how-to-use-python-helpers-to-bulk-load-data-into-an-elasticsearch-index
-
