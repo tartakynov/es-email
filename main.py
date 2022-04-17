@@ -1,6 +1,8 @@
 #! /usr/bin/env python
 
+import hashlib
 import json
+import os.path
 import tarfile
 from email.parser import Parser
 from email.utils import parsedate_to_datetime
@@ -13,6 +15,8 @@ ALLOWED_HEADERS = {"message-id", "date", "file_name", "from", "to", "cc", "bcc",
 
 COMMA_SEPARATED_HEADERS = {"from", "to", "cc", "bcc", "x-from", "x-to", "x-cc", "x-bcc"}
 
+SIGNATURE_PART_HEADERS = {"date", "subject", "from", "to"}
+
 OUTPUT_SIZE_THRESHOLD = 67108864  # 64 MiB
 
 TAR_FILE = "data/enron_mail_20110402.tgz"  # dataset file location
@@ -23,19 +27,23 @@ PROGRESS_FILE = "data/progress.json"  # cursor file location for saving the prog
 def parse_file(parser, file_path, content):
     json_doc = {}
     msg = parser.parsestr(content)
+    signature = ""
     for header, value in msg.items():
         header = header.lower()
         if header not in ALLOWED_HEADERS or not value:
             continue
+        if header in SIGNATURE_PART_HEADERS:
+            signature = hashlib.md5(f"{signature}:{value}".encode("utf-8")).hexdigest()
         if header in COMMA_SEPARATED_HEADERS:
             value = [v.strip() for v in value.split(",")]
-        elif header == "date" and "date" not in json_doc:
+        if header == "date" and "date" not in json_doc:
             value = int(parsedate_to_datetime(value).timestamp())
         json_doc[header] = value
 
+    signature = hashlib.md5(f"{signature}:{msg.get_payload()}".encode("utf-8")).hexdigest()
     json_doc["body"] = msg.get_payload()
     json_doc["original_file_path"] = file_path
-    return json_doc
+    return signature, json_doc
 
 
 def bulk_upload(fp):
@@ -57,6 +65,8 @@ def save_progress(file_path, index):
 
 
 def load_progress():
+    if not os.path.exists(PROGRESS_FILE):
+        return None, -1
     with open(PROGRESS_FILE, "r") as fp:
         progress = json.load(fp)
         return progress["path"], progress["index"]
@@ -82,15 +92,16 @@ def main():
 
     out = StringIO()
     try:
-        print(f"fast-forwarding to position {last_index}")
-        for json_doc in load_data():
+        if last_index > 0:
+            print(f"fast-forwarding to position {last_index}")
+        for signature, json_doc in load_data():
             eml_count += 1
             if eml_count <= last_index:
                 if eml_count == last_index:
                     print(f"fast-forwarding completed")
                 continue
 
-            out.write('{"index":{"_index":"enron"}}\n')
+            out.write(f'{{"index":{{"_index":"enron","_id":"{signature}"}}}}\n')
             out.write(json.dumps(json_doc, separators=(',', ':')))
             out.write("\n")
 
