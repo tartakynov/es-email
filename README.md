@@ -1,4 +1,4 @@
-This script indexes the Enron mail dataset to Elastic.
+The script named `enron.py` indexes the Enron mail dataset to Elastic.
 
 ## Prerequisites
 - Python 3
@@ -14,11 +14,11 @@ pip install -r requirements.txt
 ```shell
 curl -sX PUT "http://localhost:9200/enron" \
   -H "Content-Type: application/json" \
-  --data-binary @enron-index.json | jq
+  --data-binary @indexes/enron.json | jq
 ```
 3. Run the script
 ```shell
-./main.py
+./enron.py
 ```
 4. You can delete the index if you want to re-upload the data
 ```shell
