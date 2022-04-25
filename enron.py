@@ -113,6 +113,8 @@ def main():
                 out = StringIO()
                 save_progress(json_doc["original_file_path"], eml_count)
     finally:
+        out.seek(0)
+        bulk_upload(out)
         out.close()
 
 
