@@ -42,20 +42,14 @@ def decode_imap4_utf7(s):
     return ''.join(r)
 
 
-def decode_encoded_words(encoded_str):
-    match = re.search(r'=\?(.+)\?([B|Q])\?(.+)\?=', encoded_str, re.MULTILINE)
-    if not match:
-        return encoded_str
+def _decode_mime_header_repl(match):
     charset, encoding, encoded_text = match.groups()
-    left, right = match.span()
-    byte_string = encoded_str[:left]
     if encoding == 'B':
-        byte_string += base64.b64decode(encoded_text).decode(charset)
+        return base64.b64decode(encoded_text).decode(charset)
     elif encoding == 'Q':
-        byte_string += quopri.decodestring(encoded_text).decode(charset)
-    byte_string += encoded_str[right:]
-    return byte_string
+        return quopri.decodestring(encoded_text).decode(charset)
+    raise Exception(f'Unknown encoding: {encoding}')
 
 
-def decode_base64(value):
-    return base64.b64decode(value)
+def decode_mime_header(encoded_str):
+    return re.sub(r'=\?([^?]+)\?([B|Q])\?([^?]+)\?=', _decode_mime_header_repl, encoded_str, flags=re.MULTILINE)

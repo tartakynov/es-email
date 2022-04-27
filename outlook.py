@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import base64
 import hashlib
 import json
 import os
@@ -11,7 +12,7 @@ from io import StringIO
 import requests
 from html2text import html2text
 
-from decoder import decode_encoded_words, decode_imap4_utf7, decode_base64
+from decoder import decode_mime_header, decode_imap4_utf7
 
 ALLOWED_HEADERS = {"message-id", "date", "file_name", "from", "to", "cc", "bcc", "x-from", "x-to", "x-cc", "x-bcc",
                    "x-folder", "x-filename", "subject"}
@@ -36,7 +37,7 @@ def parse_body(msg):
     if content_type == "text/html":
         if text.startswith("+ADw-"):
             text = decode_imap4_utf7(text)
-        text = html2text(text).strip()
+        text = html2text(text, bodywidth=0).strip()
         return text
     elif content_type == "text/plain":
         return text
@@ -74,7 +75,7 @@ def extract_attachment(message_id_hash, msg):
         os.makedirs(folder, exist_ok=True)
         with open(path, "wb") as fout:
             payload = msg.get_payload()
-            fout.write(decode_base64(payload))
+            fout.write(base64.b64decode(payload))
     return path
 
 
@@ -83,17 +84,17 @@ def parse_file(parser, file_path, content):
     msg = parser.parsestr(content)
     for header, value in msg.items():
         header = header.lower()
+        value = value.replace("\n ", "")
         if header not in ALLOWED_HEADERS or not value:
             continue
         if header in COMMA_SEPARATED_HEADERS:
-            value = [decode_encoded_words(v.strip()) for v in value.split(",")]
+            value = [decode_mime_header(v.strip()) for v in value.split(",")]
         else:
-            value = decode_encoded_words(value.strip())
+            value = decode_mime_header(value.strip())
         if header == "date" and "date" not in json_doc:
             value = int(parsedate_to_datetime(value).timestamp())
         json_doc[header] = value
     message_id_hash = hashlib.md5(json_doc["message-id"].encode("latin1")).hexdigest()
-
     payload = msg.get_payload()
     json_doc["body"] = parse_body(payload[0])
     attachments = [extract_attachment(message_id_hash, a) for a in payload[1:] if a]
